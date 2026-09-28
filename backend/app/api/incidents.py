@@ -5,7 +5,7 @@ All severity data returned is the deterministic floor; LLM-raised severity is ha
 Investigation Agent (Phase 3 & 4) and stored in a separate field -- never replaces the floor.
 Phase 5 introduces evidence-linked structured reports with Markdown & PDF export.
 """
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from fastapi import APIRouter, HTTPException, Path, Query, Response, status
 from backend.correlation import correlation_engine, CorrelatedIncident, IncidentStatus
 from backend.ingestion.models import SeverityLevel
@@ -241,3 +241,151 @@ async def get_report_pdf(incident_id: str = Path(..., description="Incident ID")
         media_type="application/pdf",
         headers={"Content-Disposition": f'attachment; filename="incident_report_{incident_id}.pdf"'},
     )
+
+# ---------------------------------------------------------------------------
+# Phase 6: Human-in-the-Loop Containment Actions & Escalation Endpoints
+# ---------------------------------------------------------------------------
+from backend.response import (
+    response_manager,
+    ProposedAction,
+    ActionDecisionRequest,
+    EscalationChannel,
+    EscalationRecord,
+)
+
+
+@router.get(
+    "/{incident_id}/actions",
+    response_model=List[ProposedAction],
+    summary="List all containment actions proposed or executed for an incident",
+)
+async def list_incident_actions(incident_id: str = Path(..., description="Incident ID")):
+    """
+    Returns the list of containment actions (e.g. host isolation, IP blocklist)
+    associated with this incident, including their risk levels and approval statuses.
+    """
+    _get_or_run_investigation(incident_id)
+    return response_manager.list_actions(incident_id=incident_id)
+
+
+@router.post(
+    "/{incident_id}/actions/{action_id}/approve",
+    response_model=ProposedAction,
+    summary="Human analyst approval gate to authorize containment action execution",
+)
+async def approve_action(
+    incident_id: str = Path(..., description="Incident ID"),
+    action_id: str = Path(..., description="Action ID to approve"),
+    decision: ActionDecisionRequest = ...,
+):
+    """
+    Records human authorization and executes the containment action against infrastructure
+    (in dry-run or live mode depending on system configuration).
+    """
+    action = response_manager.get_action(action_id)
+    if not action or action.incident_id != incident_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Action '{action_id}' not found for incident '{incident_id}'",
+        )
+    try:
+        updated = response_manager.approve_action(
+            action_id=action_id,
+            analyst_id=decision.analyst_id,
+            notes=decision.notes,
+            auto_execute=True,
+        )
+        return updated
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
+@router.post(
+    "/{incident_id}/actions/{action_id}/reject",
+    response_model=ProposedAction,
+    summary="Human analyst rejection gate to decline a proposed containment action",
+)
+async def reject_action(
+    incident_id: str = Path(..., description="Incident ID"),
+    action_id: str = Path(..., description="Action ID to reject"),
+    decision: ActionDecisionRequest = ...,
+):
+    """
+    Records human refusal of containment action with a mandatory rationale.
+    """
+    action = response_manager.get_action(action_id)
+    if not action or action.incident_id != incident_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Action '{action_id}' not found for incident '{incident_id}'",
+        )
+    try:
+        updated = response_manager.reject_action(
+            action_id=action_id,
+            analyst_id=decision.analyst_id,
+            reason=decision.reason or decision.notes,
+        )
+        return updated
+    except ValueError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
+@router.post(
+    "/{incident_id}/actions/{action_id}/rollback",
+    response_model=ProposedAction,
+    summary="Rollback an executed containment action (e.g. reconnect host, unblock IP)",
+)
+async def rollback_action(
+    incident_id: str = Path(..., description="Incident ID"),
+    action_id: str = Path(..., description="Action ID to roll back"),
+    decision: ActionDecisionRequest = ...,
+):
+    """
+    Reverses an executed containment action if marked reversible.
+    """
+    action = response_manager.get_action(action_id)
+    if not action or action.incident_id != incident_id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Action '{action_id}' not found for incident '{incident_id}'",
+        )
+    try:
+        updated = response_manager.rollback_action(
+            action_id=action_id,
+            analyst_id=decision.analyst_id,
+        )
+        return updated
+    except Exception as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+
+@router.post(
+    "/{incident_id}/escalate",
+    response_model=EscalationRecord,
+    summary="Dispatch external escalation notification (Slack Block Kit / PagerDuty)",
+)
+async def escalate_incident(
+    incident_id: str = Path(..., description="Incident ID"),
+    channel: EscalationChannel = Query(EscalationChannel.SLACK, description="Notification platform"),
+    webhook_url: Optional[str] = Query(None, description="Optional override webhook URL"),
+):
+    """
+    Sends rich incident notifications and interactive action approval cards to Slack or PagerDuty.
+    """
+    incident = correlation_engine.get_incident(incident_id)
+    if not incident:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Incident '{incident_id}' not found",
+        )
+    # Ensure actions and narrative are available
+    inv_state = _get_or_run_investigation(incident_id)
+    summary = inv_state.get("narrative", f"Escalation for incident {incident_id}")
+
+    record = await response_manager.escalate_incident(
+        incident=incident,
+        summary=summary,
+        channel=channel,
+        webhook_url=webhook_url,
+    )
+    return record

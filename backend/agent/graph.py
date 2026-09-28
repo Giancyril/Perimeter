@@ -1,5 +1,5 @@
 """
-Phase 3, Phase 4 & Phase 5: LangGraph Investigation Agent with Hybrid Severity Scoring and Evidence-Linked Report Generation.
+Phase 3-6: LangGraph Investigation Agent with Hybrid Severity Scoring, Evidence-Linked Report Generation, and HITL Containment Proposals.
 
 Implements a LangGraph StateGraph that investigates a correlated incident by
 running a suite of deterministic tool-nodes (Threat Intel, Asset Context, SIEM Log Search,
@@ -72,6 +72,9 @@ class InvestigationState(TypedDict, total=False):
     incident_report: Optional[IncidentReport]
     report_markdown: Optional[str]
 
+    # Phase 6: Human-in-the-Loop Response Actions
+    proposed_actions: List[Any]
+
     # Report & Containment Actions
     narrative: str
     recommended_actions: List[str]
@@ -118,6 +121,7 @@ def node_fetch_context(state: InvestigationState) -> InvestigationState:
         "severity_recommendation": incident.severity,
         "incident_report": None,
         "report_markdown": None,
+        "proposed_actions": [],
         "narrative": "",
         "recommended_actions": [],
         "step_count": state.get("step_count", 0) + 1,
@@ -421,6 +425,14 @@ def node_generate_report(state: InvestigationState) -> InvestigationState:
             (new_state.get("audit_note") or "") +
             f" [ReportBuildError: {exc}]"
         )
+
+    # ---- Phase 6: Formulate structured containment action proposals ----
+    try:
+        from backend.response import response_manager
+        new_state["proposed_actions"] = response_manager.propose_actions_from_state(new_state)
+    except Exception as exc:
+        new_state["proposed_actions"] = []
+
     return new_state
 
 

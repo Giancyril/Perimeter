@@ -90,7 +90,7 @@ Security Operations Agent/
 - [x] **Phase 3: LangGraph Investigation Agent (Day 10-17)**: Tool nodes (SIEM search, AbuseIPDB, VirusTotal, asset criticality), untrusted-data boundary wrapper, execution step limiters.
 - [x] **Phase 4: Hybrid Severity Scoring & Floor Enforcement (Day 17-21)**: Deterministic formula, LLM reasoning contribution, strict floor enforcement preventing downgrades.
 - [x] **Phase 5: Evidence-Linked Report Generation (Day 21-24)**: Structured timeline, affected entities, evidence traceability, Markdown and PDF report exports.
-- [ ] **Phase 6: Escalation & Human-in-the-Loop Response Gate (Day 24-28)**: Slack / PagerDuty webhook dispatch, LangGraph server-side interrupt approval gate for host isolation / IP blocking.
+- [x] **Phase 6: Escalation & Human-in-the-Loop Response Gate (Day 24-28)**: Slack / PagerDuty webhook dispatch, LangGraph server-side interrupt approval gate for host isolation / IP blocking.
 - [ ] **Phase 7: Frontend SOC Dashboard (Day 28-34)**: Incident queue table, detail timeline, entity correlation panel, approval banner.
 - [ ] **Phase 8: Evaluation, Adversarial & Failure Testing (Day 34-38)**: Attack replay evaluation against labeled set, prompt injection defenses, external API failure mode testing.
 - [ ] **Phase 9: Deployment & CI/CD (Day 38-41)**: Container packaging, Helm charts, GitHub Actions evaluation quality gate.
