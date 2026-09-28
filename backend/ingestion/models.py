@@ -96,4 +96,6 @@ class IngestionResult(BaseModel):
     was_duplicate: bool
     duplicate_count: int
     normalized_severity: SeverityLevel
+    incident_id: Optional[str] = Field(None, description="Incident ID the alert was correlated into (None for duplicates)")
     summary: str
+

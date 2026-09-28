@@ -2,9 +2,11 @@
 Alert Ingestion & Deduplication Engine.
 Normalizes incoming alerts through the adapter registry, enforces deterministic SHA-256 deduplication,
 and preserves the original intact raw payload for auditability and forensic trace.
+
+On every newly-unique alert the engine automatically forwards the normalized alert to the
+CorrelationEngine so events are grouped into incidents in real-time (Phase 2 integration).
 """
 from typing import Dict, Any, List, Optional
-from datetime import datetime, timezone
 import threading
 from backend.ingestion.models import (
     NormalizedAlert,
@@ -15,18 +17,28 @@ from backend.ingestion.models import (
 )
 from backend.ingestion.adapters.registry import adapter_registry
 
+
 class IngestionEngine:
     """Core alert ingestion pipeline with thread-safe deduplication and storage."""
 
     def __init__(self, dedup_window_seconds: int = 600):
         self.dedup_window_seconds = dedup_window_seconds
-        self._alerts: Dict[str, NormalizedAlert] = {}            # alert_id -> NormalizedAlert
-        self._fingerprints: Dict[str, str] = {}                  # fingerprint -> alert_id
+        self._alerts: Dict[str, NormalizedAlert] = {}        # alert_id -> NormalizedAlert
+        self._fingerprints: Dict[str, str] = {}              # fingerprint -> alert_id
         self._lock = threading.Lock()
+        self._correlation_engine = None
+
+    def _get_correlation_engine(self):
+        """Lazy singleton accessor -- avoids circular import at module load time."""
+        if self._correlation_engine is None:
+            from backend.correlation.engine import correlation_engine
+            self._correlation_engine = correlation_engine
+        return self._correlation_engine
 
     def ingest(self, payload: Dict[str, Any], explicit_source: Optional[str] = None) -> IngestionResult:
         """
         Ingests, normalizes, and deduplicates an incoming security alert.
+        If unique, the alert is forwarded to CorrelationEngine.
         """
         adapter = adapter_registry.resolve_adapter(payload, explicit_source=explicit_source)
         normalized = adapter.normalize(payload)
@@ -38,7 +50,6 @@ class IngestionEngine:
                 existing_alert = self._alerts[existing_id]
                 existing_alert.duplicate_count += 1
                 existing_alert.last_seen_at = utc_now()
-                # Store latest payload updates if critical
                 existing_alert.raw_payload = payload
 
                 return IngestionResult(
@@ -52,20 +63,33 @@ class IngestionEngine:
                     summary=f"Deduplicated alert '{existing_alert.rule_name}' (count: {existing_alert.duplicate_count})",
                 )
 
-            # Register new unique alert
             self._alerts[normalized.alert_id] = normalized
             self._fingerprints[normalized.fingerprint] = normalized.alert_id
 
-            return IngestionResult(
-                status="ingested",
-                alert_id=normalized.alert_id,
-                fingerprint=normalized.fingerprint,
-                source=normalized.source,
-                was_duplicate=False,
-                duplicate_count=1,
-                normalized_severity=normalized.normalized_severity,
-                summary=f"Ingested new alert '{normalized.rule_name}' with severity {normalized.normalized_severity.value.upper()}",
-            )
+        # Phase 2: auto-correlate (outside lock to avoid deadlock)
+        incident_id = None
+        try:
+            correlation_engine = self._get_correlation_engine()
+            incident = correlation_engine.correlate(normalized)
+            incident_id = incident.incident_id
+        except Exception:
+            pass  # Correlation is non-blocking; ingestion must never fail
+
+        return IngestionResult(
+            status="ingested",
+            alert_id=normalized.alert_id,
+            fingerprint=normalized.fingerprint,
+            source=normalized.source,
+            was_duplicate=False,
+            duplicate_count=1,
+            normalized_severity=normalized.normalized_severity,
+            incident_id=incident_id,
+            summary=(
+                f"Ingested new alert '{normalized.rule_name}' with severity "
+                f"{normalized.normalized_severity.value.upper()}"
+                + (f"; correlated into {incident_id}" if incident_id else "")
+            ),
+        )
 
     def get_alert(self, alert_id: str) -> Optional[NormalizedAlert]:
         with self._lock:
@@ -94,7 +118,6 @@ class IngestionEngine:
         if ip:
             results = [a for a in results if a.source_ip == ip or a.destination_ip == ip]
 
-        # Order by newest first
         results.sort(key=lambda a: a.last_seen_at, reverse=True)
         return results[:limit]
 
@@ -107,7 +130,7 @@ class IngestionEngine:
         dedup_ratio = round((total_raw - total_unique) / total_raw, 2) if total_raw > 0 else 0.0
 
         by_severity = {sev.value: 0 for sev in SeverityLevel}
-        by_source = {}
+        by_source: Dict[str, int] = {}
 
         for a in alerts:
             by_severity[a.normalized_severity.value] += a.duplicate_count
@@ -127,6 +150,7 @@ class IngestionEngine:
         with self._lock:
             self._alerts.clear()
             self._fingerprints.clear()
+
 
 # Global singleton
 ingestion_engine = IngestionEngine()

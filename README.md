@@ -85,9 +85,9 @@ Security Operations Agent/
 ## Phased Implementation Roadmap
 
 - [x] **Phase 0: Project Scaffolding (Day 0-1)**: Monorepo layout, FastAPI backend skeleton, React 19 Vite TypeScript frontend, Docker Compose PostgreSQL + alert simulator, initial 10-incident labeled evaluation dataset.
-- [ ] **Phase 1: Alert Ingestion & Normalization (Day 1-5)**: Wazuh webhook receiver, normalized alert schema (OCSF/ECS), SHA-256 alert deduplication.
-- [ ] **Phase 2: Event Correlation & ATT&CK Mapping (Day 5-10)**: Time-window entity grouping (source/dest IP, user, host), MITRE ATT&CK tactic/technique mapping.
-- [ ] **Phase 3: LangGraph Investigation Agent (Day 10-17)**: Tool nodes (SIEM search, AbuseIPDB, VirusTotal, asset criticality), untrusted-data boundary wrapper, execution step limiters.
+- [x] **Phase 1: Alert Ingestion & Normalization (Day 1-5)**: Wazuh webhook receiver, normalized alert schema (OCSF/ECS), SHA-256 alert deduplication.
+- [x] **Phase 2: Event Correlation & ATT&CK Mapping (Day 5-10)**: Time-window entity grouping (source/dest IP, user, host), MITRE ATT&CK tactic/technique mapping.
+- [x] **Phase 3: LangGraph Investigation Agent (Day 10-17)**: Tool nodes (SIEM search, AbuseIPDB, VirusTotal, asset criticality), untrusted-data boundary wrapper, execution step limiters.
 - [ ] **Phase 4: Hybrid Severity Scoring & Floor Enforcement (Day 17-21)**: Deterministic formula, LLM reasoning contribution, strict floor enforcement preventing downgrades.
 - [ ] **Phase 5: Evidence-Linked Report Generation (Day 21-24)**: Structured timeline, affected entities, evidence traceability, Markdown and PDF report exports.
 - [ ] **Phase 6: Escalation & Human-in-the-Loop Response Gate (Day 24-28)**: Slack / PagerDuty webhook dispatch, LangGraph server-side interrupt approval gate for host isolation / IP blocking.
