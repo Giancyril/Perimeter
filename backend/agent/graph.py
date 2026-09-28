@@ -1,19 +1,11 @@
-﻿"""
-Phase 3: LangGraph Investigation Agent.
+"""
+Phase 3, Phase 4 & Phase 5: LangGraph Investigation Agent with Hybrid Severity Scoring and Evidence-Linked Report Generation.
 
 Implements a LangGraph StateGraph that investigates a correlated incident by
 running a suite of deterministic tool-nodes (Threat Intel, Asset Context, SIEM Log Search,
-Lateral Movement Analyzer, Untrusted Data Boundary Wrapper), then computes risk score
-and synthesizes a structured investigation report.
-
-State machine nodes:
-  1. fetch_context          - Load incident + alerts; wrap untrusted content
-  2. query_threat_intel     - Query AbuseIPDB / VirusTotal via ThreatIntelClient
-  3. query_asset_context    - Resolve asset criticality via AssetContextResolver
-  4. query_logs             - Search and sanitize SIEM logs; detect prompt injection
-  5. analyze_lateral_move   - Detect east-west movement across hosts
-  6. compute_risk_score     - Deterministically evaluate findings; enforce floor
-  7. generate_report        - Structured narrative + actionable containment steps
+Lateral Movement Analyzer, Untrusted Data Boundary Wrapper), computes hybrid risk scores
+via DeterministicScorer and LLMSeverityEvaluator, and strictly enforces the non-downgradable
+severity floor invariant before synthesizing an auditable incident report.
 
 Safety invariants enforced in code:
   - Severity is strictly clamped to >= deterministic_floor (CANNOT be downgraded)
@@ -42,22 +34,12 @@ from backend.agent.tools.untrusted import (
     wrap_untrusted_data,
     detect_prompt_injection,
 )
-
-
-SEVERITY_ORDER = [
-    SeverityLevel.INFORMATIONAL,
-    SeverityLevel.LOW,
-    SeverityLevel.MEDIUM,
-    SeverityLevel.HIGH,
-    SeverityLevel.CRITICAL,
-]
-
-
-def _raise_severity(current: SeverityLevel, target: SeverityLevel) -> SeverityLevel:
-    """Returns the higher of current and target severity. Never downgrades."""
-    if SEVERITY_ORDER.index(target) > SEVERITY_ORDER.index(current):
-        return target
-    return current
+from backend.severity import (
+    deterministic_scorer,
+    llm_severity_evaluator,
+    max_severity,
+)
+from backend.reporting import build_report, render_markdown, IncidentReport
 
 
 # ---------------------------------------------------------------------------
@@ -79,9 +61,16 @@ class InvestigationState(TypedDict, total=False):
     adversarial_injection_detected: bool
     adversarial_injection_reason: Optional[str]
 
-    # Scoring & Floor Enforcement
+    # Phase 4: Scoring & Floor Enforcement
+    scoring_breakdown: Optional[Dict[str, Any]]
+    floor_enforced: bool
+    audit_note: Optional[str]
     risk_score_override: Optional[int]
     severity_recommendation: Optional[SeverityLevel]
+
+    # Phase 5: Structured Evidence-Linked Report
+    incident_report: Optional[IncidentReport]
+    report_markdown: Optional[str]
 
     # Report & Containment Actions
     narrative: str
@@ -122,8 +111,13 @@ def node_fetch_context(state: InvestigationState) -> InvestigationState:
         "lateral_movement_paths": [],
         "adversarial_injection_detected": False,
         "adversarial_injection_reason": None,
+        "scoring_breakdown": None,
+        "floor_enforced": False,
+        "audit_note": None,
         "risk_score_override": None,
         "severity_recommendation": incident.severity,
+        "incident_report": None,
+        "report_markdown": None,
         "narrative": "",
         "recommended_actions": [],
         "step_count": state.get("step_count", 0) + 1,
@@ -206,7 +200,6 @@ def node_query_logs(state: InvestigationState) -> InvestigationState:
             injection_reason = entry.get("adversarial_injection_reason")
             break
 
-    # Also inspect incident title and alert descriptions
     if not injection_found:
         has_inj, rsn = detect_prompt_injection(incident.title)
         if has_inj:
@@ -253,62 +246,44 @@ def node_analyze_lateral_movement(state: InvestigationState) -> InvestigationSta
 
 def node_compute_risk_score(state: InvestigationState) -> InvestigationState:
     """
-    Deterministically computes final severity score based on all enrichment findings.
+    Deterministically computes final severity score using Phase 4 hybrid scoring.
     CRITICAL INVARIANT: The severity can NEVER be downgraded below incident.deterministic_floor.
     """
     incident = state.get("incident")
     if not incident:
         return state
 
-    floor = incident.deterministic_floor
-    current = floor
-
     threat_intel = state.get("threat_intel", {})
     lateral_paths = state.get("lateral_movement_paths", [])
     assets = state.get("asset_context", {})
     injection_detected = state.get("adversarial_injection_detected", False)
 
-    # 1. Threat Intel Escalation
-    has_malicious_ti = any(v.get("verdict") == "malicious" for v in threat_intel.values())
-    if has_malicious_ti:
-        current = _raise_severity(current, SeverityLevel.HIGH)
-
-    # 2. Lateral Movement Escalation
-    if lateral_paths:
-        current = _raise_severity(current, SeverityLevel.HIGH)
-
-    # 3. Critical Asset Exposure (Tier 0)
-    has_tier_0 = any(
-        a.get("criticality") == AssetCriticalityTier.TIER_0_CRITICAL.value
-        for a in assets.values()
+    # 1. Deterministic formula breakdown
+    breakdown = deterministic_scorer.calculate_breakdown(
+        incident=incident,
+        threat_intel=threat_intel,
+        asset_context=assets,
+        lateral_movement_paths=lateral_paths,
+        adversarial_injection_detected=injection_detected,
     )
-    if has_tier_0:
-        if has_malicious_ti or lateral_paths or len(incident.tactics) >= 2:
-            current = _raise_severity(current, SeverityLevel.CRITICAL)
-        else:
-            current = _raise_severity(current, SeverityLevel.HIGH)
 
-    # 4. Adversarial Prompt Injection Defense Escalation
-    # An attacker attempting prompt injection in logs is actively exploiting defense evasion
-    if injection_detected:
-        current = _raise_severity(current, SeverityLevel.HIGH)
+    # 2. LLM reasoning + Strict Floor Enforcement
+    final_res = llm_severity_evaluator.evaluate_and_enforce(
+        incident=incident,
+        breakdown=breakdown,
+        threat_intel=threat_intel,
+        asset_context=assets,
+        adversarial_injection_detected=injection_detected,
+    )
 
-    # 5. MITRE Kill-Chain Breadth Escalation
-    if len(incident.tactics) >= 5:
-        current = _raise_severity(current, SeverityLevel.CRITICAL)
-    elif len(incident.tactics) >= 3:
-        current = _raise_severity(current, SeverityLevel.HIGH)
-
-    # Strictly enforce floor
-    final_sev = _raise_severity(floor, current)
-
-    # Update incident state
-    incident.severity = final_sev
     incident.updated_at = utc_now()
 
     return {
         **state,
-        "severity_recommendation": final_sev,
+        "scoring_breakdown": breakdown.model_dump(),
+        "floor_enforced": final_res.floor_enforced,
+        "audit_note": final_res.audit_note,
+        "severity_recommendation": final_res.final_severity,
         "step_count": state.get("step_count", 0) + 1,
     }
 
@@ -325,6 +300,9 @@ def node_generate_report(state: InvestigationState) -> InvestigationState:
     log_evidence = state.get("log_evidence", [])
     injection_detected = state.get("adversarial_injection_detected", False)
     injection_reason = state.get("adversarial_injection_reason")
+    breakdown = state.get("scoring_breakdown", {})
+    floor_enforced = state.get("floor_enforced", False)
+    audit_note = state.get("audit_note")
 
     malicious_entities = [k for k, v in threat_intel.items() if v.get("verdict") == "malicious"]
     critical_assets = [k for k, v in assets.items() if v.get("criticality") == AssetCriticalityTier.TIER_0_CRITICAL.value]
@@ -337,6 +315,24 @@ def node_generate_report(state: InvestigationState) -> InvestigationState:
         f"**Final Severity**: {incident.severity.value.upper()} (Enforced Floor: {incident.deterministic_floor.value.upper()})",
         f"**Status**: {IncidentStatus.INVESTIGATING.value}",
         f"**Time Window**: {incident.window_start} -> {incident.window_end}",
+        "",
+        "## Severity Scoring & Invariants",
+        f"- Enforced Floor: {incident.deterministic_floor.value.upper()}",
+        f"- Floor Enforcement Active: {'YES (Downgrade Blocked)' if floor_enforced else 'No (Baseline Maintained)'}",
+    ]
+    if audit_note:
+        lines.append(f"- Audit Note: {audit_note}")
+    if breakdown:
+        lines += [
+            f"- Base Score: {breakdown.get('base_score')}",
+            f"- Asset Multiplier: {breakdown.get('asset_multiplier')}x",
+            f"- Threat Intel Points: +{breakdown.get('threat_intel_points')}",
+            f"- MITRE Multiplier: {breakdown.get('mitre_multiplier')}x",
+            f"- Lateral Movement Points: +{breakdown.get('lateral_movement_points')}",
+            f"- Composite Raw Score: {breakdown.get('raw_calculated_score')}",
+        ]
+
+    lines += [
         "",
         "## Adversarial Prompt Injection Defense",
         f"- Injection Attempt Detected: {'YES (BLOCKED)' if injection_detected else 'No'}",
@@ -387,7 +383,6 @@ def node_generate_report(state: InvestigationState) -> InvestigationState:
 
     narrative = "\n".join(lines)
 
-    # Formulate prioritized recommended actions
     actions: List[str] = []
     sev = incident.severity
     if sev == SeverityLevel.CRITICAL:
@@ -407,18 +402,27 @@ def node_generate_report(state: InvestigationState) -> InvestigationState:
     incident.status = IncidentStatus.INVESTIGATING
     incident.updated_at = utc_now()
 
-    return {
+    # ---- Phase 5: Build structured evidence-linked report ----
+    new_state = {
         **state,
         "narrative": narrative,
         "recommended_actions": actions,
         "investigation_complete": True,
         "step_count": state.get("step_count", 0) + 1,
     }
+    try:
+        report_obj = build_report(new_state)
+        md_report = render_markdown(report_obj)
+        new_state["incident_report"] = report_obj
+        new_state["report_markdown"] = md_report
+    except Exception as exc:
+        # Report generation failure must NEVER halt the investigation
+        new_state["audit_note"] = (
+            (new_state.get("audit_note") or "") +
+            f" [ReportBuildError: {exc}]"
+        )
+    return new_state
 
-
-# ---------------------------------------------------------------------------
-# Graph construction & Execution Engine
-# ---------------------------------------------------------------------------
 
 def _route_after_fetch(state: InvestigationState) -> str:
     """Route to END if fetch_context encountered an error or max steps exceeded."""
@@ -470,7 +474,6 @@ def investigate_incident(incident_id: str, max_steps: int = 20) -> Investigation
     if graph:
         return graph.invoke(initial_state)
 
-    # Sequential execution fallback with step limiter
     state = initial_state
     pipeline = [
         node_fetch_context,
@@ -494,5 +497,4 @@ def investigate_incident(incident_id: str, max_steps: int = 20) -> Investigation
     return state
 
 
-# Singleton graph
 investigation_graph = build_investigation_graph()

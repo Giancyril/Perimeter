@@ -11,11 +11,7 @@ from typing import Dict, Any, Optional
 from pydantic import BaseModel, Field
 
 
-class AssetCriticalityTier(str, Enum):
-    TIER_0_CRITICAL = "critical"   # Domain Controllers, Root CAs, Key Vaults, Payment Processors
-    TIER_1_HIGH = "high"           # Production databases, Kubernetes control plane, Core APIs
-    TIER_2_MEDIUM = "medium"       # Internal web apps, jump hosts, developer staging
-    TIER_3_LOW = "low"             # End-user workstations, test labs, ephemeral environments
+from backend.severity.models import AssetCriticalityTier
 
 
 class AssetContext(BaseModel):

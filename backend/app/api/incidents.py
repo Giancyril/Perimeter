@@ -1,15 +1,42 @@
-﻿"""
+"""
 Incidents REST API.
 Exposes endpoints for querying correlated security incidents produced by the CorrelationEngine.
 All severity data returned is the deterministic floor; LLM-raised severity is handled by the
-Investigation Agent (Phase 3) and stored in a separate field -- never replaces the floor.
+Investigation Agent (Phase 3 & 4) and stored in a separate field -- never replaces the floor.
+Phase 5 introduces evidence-linked structured reports with Markdown & PDF export.
 """
 from typing import Dict, Any, Optional
-from fastapi import APIRouter, HTTPException, Path, Query, status
+from fastapi import APIRouter, HTTPException, Path, Query, Response, status
 from backend.correlation import correlation_engine, CorrelatedIncident, IncidentStatus
 from backend.ingestion.models import SeverityLevel
+from backend.reporting import render_pdf, render_markdown
 
 router = APIRouter(prefix="/incidents", tags=["incidents"])
+
+# In-memory investigation results cache (keyed by incident_id)
+_investigation_cache: Dict[str, dict] = {}
+
+
+def _get_or_run_investigation(incident_id: str) -> dict:
+    """Helper to fetch an existing investigation state or trigger a new one."""
+    incident = correlation_engine.get_incident(incident_id)
+    if not incident:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Incident '{incident_id}' not found",
+        )
+    if incident_id in _investigation_cache:
+        return _investigation_cache[incident_id]
+
+    from backend.agent import investigate_incident
+    result = investigate_incident(incident_id)
+    if result.get("error"):
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=result["error"],
+        )
+    _investigation_cache[incident_id] = result
+    return result
 
 
 @router.get(
@@ -99,7 +126,7 @@ async def update_incident_status(
 )
 async def investigate(incident_id: str = Path(..., description="Incident ID to investigate")):
     """
-    Runs the full Phase 3 investigation pipeline:
+    Runs the full Phase 3-5 investigation pipeline:
     fetch context -> TI enrichment -> asset context -> log query -> lateral movement -> risk score -> report.
     Returns the investigation state including narrative, defense audit, and recommended actions.
     """
@@ -116,10 +143,16 @@ async def investigate(incident_id: str = Path(..., description="Incident ID to i
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=result["error"],
         )
+    _investigation_cache[incident_id] = result
+
+    report = result.get("incident_report")
     return {
         "incident_id": incident_id,
         "severity": result["incident"].severity.value if result.get("incident") else None,
         "enforced_floor": result["incident"].deterministic_floor.value if result.get("incident") else None,
+        "floor_enforced": result.get("floor_enforced", False),
+        "audit_note": result.get("audit_note"),
+        "scoring_breakdown": result.get("scoring_breakdown"),
         "narrative": result.get("narrative", ""),
         "recommended_actions": result.get("recommended_actions", []),
         "lateral_movement_detected": bool(result.get("lateral_movement_paths")),
@@ -131,5 +164,80 @@ async def investigate(incident_id: str = Path(..., description="Incident ID to i
         "asset_context_summary": {
             k: v.get("criticality") for k, v in result.get("asset_context", {}).items()
         },
+        "report_id": report.report_id if report else None,
+        "has_report": bool(report),
         "investigation_complete": result.get("investigation_complete", False),
     }
+
+
+@router.get(
+    "/{incident_id}/report",
+    response_model=dict,
+    summary="Get structured JSON investigation report with evidence timeline and entity traceability",
+)
+async def get_report_json(incident_id: str = Path(..., description="Incident ID")):
+    """
+    Returns the Phase 5 structured IncidentReport model as JSON.
+    Auto-triggers investigation if not yet run.
+    """
+    result = _get_or_run_investigation(incident_id)
+    report = result.get("incident_report")
+    if not report:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Report not available for incident '{incident_id}'",
+        )
+    return report.model_dump(mode="json")
+
+
+@router.get(
+    "/{incident_id}/report/markdown",
+    summary="Download or view investigation report in Markdown format",
+)
+async def get_report_markdown(incident_id: str = Path(..., description="Incident ID")):
+    """
+    Returns the report rendered as clean Markdown text.
+    """
+    result = _get_or_run_investigation(incident_id)
+    report = result.get("incident_report")
+    if not report:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Report not available for incident '{incident_id}'",
+        )
+    md_content = result.get("report_markdown") or render_markdown(report)
+    return Response(
+        content=md_content,
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'inline; filename="incident_report_{incident_id}.md"'},
+    )
+
+
+@router.get(
+    "/{incident_id}/report/pdf",
+    summary="Export investigation report as a publication-ready PDF document",
+)
+async def get_report_pdf(incident_id: str = Path(..., description="Incident ID")):
+    """
+    Generates and downloads a publication-grade PDF investigation report with color-coded
+    severity branding, complete evidence timeline, entity mapping, and audit trail.
+    """
+    result = _get_or_run_investigation(incident_id)
+    report = result.get("incident_report")
+    if not report:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Report not available for incident '{incident_id}'",
+        )
+    try:
+        pdf_bytes = render_pdf(report)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to generate PDF: {exc}",
+        )
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="incident_report_{incident_id}.pdf"'},
+    )
