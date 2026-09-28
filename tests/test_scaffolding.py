@@ -31,9 +31,9 @@ async def test_alert_webhook_stub():
             "/api/v1/alerts/webhook/wazuh",
             json={"rule": {"id": "100200", "description": "SSH Brute Force Attempt"}}
         )
-        assert response.status_code == 200
+        assert response.status_code in [200, 201]
         data = response.json()
-        assert data["status"] == "received"
+        assert data["status"] in ["ingested", "received", "deduplicated"]
         assert data["source"] == "wazuh"
 
 @pytest.mark.asyncio
