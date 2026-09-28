@@ -1,0 +1,37 @@
+﻿version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: secops-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: secops_user
+      POSTGRES_PASSWORD: secops_password
+      POSTGRES_DB: secops_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U secops_user -d secops_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Local SIEM / Alert Generator Stub
+  alert-simulator:
+    image: python:3.12-slim
+    container_name: secops-alert-simulator
+    restart: unless-stopped
+    command: >
+      bash -c "
+        echo 'Alert simulator ready. Emits synthetic Wazuh / Syslog alerts for testing.' &&
+        sleep infinity
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
