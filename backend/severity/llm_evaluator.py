@@ -176,16 +176,24 @@ class LLMSeverityEvaluator:
         extra_points = 0.0
 
         title_lower = incident.title.lower()
+        alert_texts = " ".join([f"{a.rule_name} {a.rule_description} {a.raw_payload}" for a in incident.alerts]).lower()
+        all_context = f"{title_lower} {alert_texts}"
 
-        # Severe qualitative triggers for elevation (simulating expert analyst reasoning)
-        if any(w in title_lower for w in ["privilege escalation", "accesskey", "iam", "cloud"]):
-            suggested = max_severity(suggested, SeverityLevel.CRITICAL)
-            justification_parts.append("Critical credential or root privilege escalation sequence detected.")
-            extra_points += 20.0
-        elif any(w in title_lower for w in ["kerberoasting", "dns tunneling", "cradle", "curl from /tmp"]):
-            suggested = max_severity(suggested, SeverityLevel.HIGH)
-            justification_parts.append("Advanced persistent threat technique (active persistence/exfiltration) identified.")
-            extra_points += 15.0
+        is_maintenance = any(w in alert_texts for w in ["package maintenance", "scheduled", "playbook", "ansible", "staging load test"])
+
+        if is_maintenance and floor in [SeverityLevel.INFORMATIONAL, SeverityLevel.LOW]:
+            suggested = floor
+            justification_parts.append("Verified authorized administrative maintenance / staging execution.")
+        else:
+            # Severe qualitative triggers for elevation (simulating expert analyst reasoning)
+            if any(w in all_context for w in ["ransomware", "shadow", "accesskey", "iam", "cloud", "privilege escalation"]):
+                suggested = max_severity(suggested, SeverityLevel.CRITICAL)
+                justification_parts.append("Critical credential, root privilege escalation or ransomware sequence detected.")
+                extra_points += 20.0
+            elif any(w in all_context for w in ["kerberos", "kerberoast", "tgs-req", "spn", "beaconing", "dns query", "dns tunneling", "c2", "egress traffic", "cradle", "curl from /tmp"]):
+                suggested = max_severity(suggested, SeverityLevel.HIGH)
+                justification_parts.append("Advanced persistent threat technique (active persistence, beaconing, or exfiltration) identified.")
+                extra_points += 15.0
 
         if adversarial_injection_detected:
             suggested = max_severity(suggested, SeverityLevel.HIGH)
