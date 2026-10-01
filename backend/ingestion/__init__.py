@@ -1,3 +1,4 @@
+from backend.ingestion.adapters.splunk import SplunkAdapter
 from backend.ingestion.storm import StormEntry, SuppressionDecision, AlertStormSuppressor, alert_storm_suppressor
 from backend.ingestion.dlq import DlqFailureReason, DlqEntry, DeadLetterQueue, dead_letter_queue
 from backend.ingestion.rate_limiter import RateLimitStatus, TokenBucket, IngestionRateLimiter, ingestion_rate_limiter
@@ -47,6 +48,7 @@ __all__ = [
     "WazuhAdapter",
     "SyslogAdapter",
     "GenericAdapter",
+    "SplunkAdapter",
     "ingestion_engine",
     "IngestionEngine",
     "WebhookSecurityManager",

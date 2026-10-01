@@ -1,4 +1,4 @@
-﻿"""
+"""
 SIEM Adapter Registry.
 Dispatches incoming alert payloads to the appropriate adapter based on source or payload signature.
 """
@@ -7,12 +7,14 @@ from backend.ingestion.base import AlertSourceAdapter
 from backend.ingestion.adapters.wazuh import WazuhAdapter
 from backend.ingestion.adapters.syslog import SyslogAdapter
 from backend.ingestion.adapters.generic import GenericAdapter
+from backend.ingestion.adapters.splunk import SplunkAdapter
 
 class AdapterRegistry:
     """Registry maintaining all supported SIEM alert source adapters."""
 
     def __init__(self):
         self._adapters: List[AlertSourceAdapter] = [
+            SplunkAdapter(),
             WazuhAdapter(),
             SyslogAdapter(),
             GenericAdapter(),  # Fallback must be last
