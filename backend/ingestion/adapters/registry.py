@@ -8,6 +8,7 @@ from backend.ingestion.adapters.wazuh import WazuhAdapter
 from backend.ingestion.adapters.syslog import SyslogAdapter
 from backend.ingestion.adapters.generic import GenericAdapter
 from backend.ingestion.adapters.splunk import SplunkAdapter
+from backend.ingestion.adapters.elastic import ElasticAdapter
 
 class AdapterRegistry:
     """Registry maintaining all supported SIEM alert source adapters."""
@@ -15,6 +16,7 @@ class AdapterRegistry:
     def __init__(self):
         self._adapters: List[AlertSourceAdapter] = [
             SplunkAdapter(),
+            ElasticAdapter(),
             WazuhAdapter(),
             SyslogAdapter(),
             GenericAdapter(),  # Fallback must be last

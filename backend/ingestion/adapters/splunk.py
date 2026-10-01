@@ -123,5 +123,5 @@ class SplunkAdapter(AlertSourceAdapter):
             process_name=process_name,
             entities=entities,
             mitre_attack=MitreAttackMetadata(),
-            raw_payload=str(payload)[:4096],
+            raw_payload=payload,
         )

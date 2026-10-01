@@ -1,3 +1,4 @@
+from backend.ingestion.adapters.elastic import ElasticAdapter
 from backend.ingestion.adapters.splunk import SplunkAdapter
 from backend.ingestion.storm import StormEntry, SuppressionDecision, AlertStormSuppressor, alert_storm_suppressor
 from backend.ingestion.dlq import DlqFailureReason, DlqEntry, DeadLetterQueue, dead_letter_queue
