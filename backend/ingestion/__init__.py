@@ -1,3 +1,4 @@
+from backend.ingestion.telemetry import IngestionTelemetry, ingestion_telemetry
 from backend.ingestion.adapters.elastic import ElasticAdapter
 from backend.ingestion.adapters.splunk import SplunkAdapter
 from backend.ingestion.storm import StormEntry, SuppressionDecision, AlertStormSuppressor, alert_storm_suppressor
