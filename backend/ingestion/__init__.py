@@ -1,3 +1,4 @@
+from backend.ingestion.rate_limiter import RateLimitStatus, TokenBucket, IngestionRateLimiter, ingestion_rate_limiter
 from backend.ingestion.security import WebhookSecurityManager, webhook_security_manager
 from backend.ingestion.ocsf import (
     OcsfCategory,
@@ -57,4 +58,8 @@ __all__ = [
     "IpClassification",
     "NetworkClassifier",
     "network_classifier",
+    "RateLimitStatus",
+    "TokenBucket",
+    "IngestionRateLimiter",
+    "ingestion_rate_limiter",
 ]
