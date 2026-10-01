@@ -1,4 +1,5 @@
-﻿from backend.ingestion.models import (
+from backend.ingestion.security import WebhookSecurityManager, webhook_security_manager
+from backend.ingestion.models import (
     SeverityLevel,
     AlertSourceType,
     EntityType,
@@ -32,4 +33,6 @@ __all__ = [
     "GenericAdapter",
     "ingestion_engine",
     "IngestionEngine",
+    "WebhookSecurityManager",
+    "webhook_security_manager",
 ]

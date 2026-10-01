@@ -15,6 +15,13 @@ class Settings(BaseSettings):
         "postgresql://secops_user:secops_password@localhost:5432/secops_db"
     )
 
+    # Webhook Security
+    WEBHOOK_SECRET: str = os.getenv("WEBHOOK_SECRET", "")
+    WEBHOOK_FALLBACK_SECRETS: List[str] = [
+        s.strip() for s in os.getenv("WEBHOOK_FALLBACK_SECRETS", "").split(",") if s.strip()
+    ]
+    WEBHOOK_MAX_DRIFT_SECONDS: int = int(os.getenv("WEBHOOK_MAX_DRIFT_SECONDS", "300"))
+
     # SIEM / Ingestion
     WAZUH_API_URL: str = os.getenv("WAZUH_API_URL", "https://localhost:55000")
     WAZUH_API_USER: str = os.getenv("WAZUH_API_USER", "wazuh-wui")

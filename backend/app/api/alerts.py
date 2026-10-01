@@ -1,9 +1,11 @@
-﻿"""
+"""
 Alert Ingestion & Management REST API.
 Exposes endpoints for receiving SIEM webhooks, querying normalized alerts, and viewing deduplication stats.
 """
 from typing import Dict, Any, List, Optional
-from fastapi import APIRouter, HTTPException, Path, Query, Body, status
+from fastapi import APIRouter, HTTPException, Path, Query, Body, Header, Request, status
+from backend.ingestion.security import webhook_security_manager, WebhookSecurityManager
+from backend.app.core.config import settings
 from backend.ingestion import (
     ingestion_engine,
     NormalizedAlert,
@@ -21,9 +23,27 @@ router = APIRouter(prefix="/alerts", tags=["alerts"])
     summary="Ingest SIEM alert through dedicated source adapter (Wazuh, Syslog, Splunk, Elastic, Sentinel)",
 )
 async def ingest_alert_by_source(
+    request: Request,
     source: str = Path(..., description="SIEM source identifier (e.g. wazuh, syslog)"),
     payload: Dict[str, Any] = Body(..., description="Raw SIEM alert payload"),
+    x_secops_signature: Optional[str] = Header(None, alias="X-SecOps-Signature"),
+    x_secops_timestamp: Optional[str] = Header(None, alias="X-SecOps-Timestamp"),
 ):
+    # Verify HMAC signature if configured or provided
+    raw_body = await request.body()
+    # Configure security manager dynamically from app settings
+    sec_mgr = WebhookSecurityManager(
+        primary_secret=settings.WEBHOOK_SECRET,
+        fallback_secrets=settings.WEBHOOK_FALLBACK_SECRETS,
+        max_drift_seconds=settings.WEBHOOK_MAX_DRIFT_SECONDS,
+    )
+    is_valid, reason = sec_mgr.verify_signature(
+        payload_bytes=raw_body,
+        signature_header=x_secops_signature,
+        timestamp_header=x_secops_timestamp,
+    )
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Webhook authentication failed: {reason}")
     if not payload or not isinstance(payload, dict):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -45,8 +65,25 @@ async def ingest_alert_by_source(
     summary="Ingest SIEM alert with automatic source adapter resolution",
 )
 async def ingest_alert_auto(
+    request: Request,
     payload: Dict[str, Any] = Body(..., description="Raw SIEM alert payload"),
+    x_secops_signature: Optional[str] = Header(None, alias="X-SecOps-Signature"),
+    x_secops_timestamp: Optional[str] = Header(None, alias="X-SecOps-Timestamp"),
 ):
+    # Verify HMAC signature if configured or provided
+    raw_body = await request.body()
+    sec_mgr = WebhookSecurityManager(
+        primary_secret=settings.WEBHOOK_SECRET,
+        fallback_secrets=settings.WEBHOOK_FALLBACK_SECRETS,
+        max_drift_seconds=settings.WEBHOOK_MAX_DRIFT_SECONDS,
+    )
+    is_valid, reason = sec_mgr.verify_signature(
+        payload_bytes=raw_body,
+        signature_header=x_secops_signature,
+        timestamp_header=x_secops_timestamp,
+    )
+    if not is_valid:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail=f"Webhook authentication failed: {reason}")
     if not payload or not isinstance(payload, dict):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
