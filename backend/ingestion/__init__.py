@@ -1,3 +1,4 @@
+from backend.ingestion.dlq import DlqFailureReason, DlqEntry, DeadLetterQueue, dead_letter_queue
 from backend.ingestion.rate_limiter import RateLimitStatus, TokenBucket, IngestionRateLimiter, ingestion_rate_limiter
 from backend.ingestion.security import WebhookSecurityManager, webhook_security_manager
 from backend.ingestion.ocsf import (
@@ -62,4 +63,8 @@ __all__ = [
     "TokenBucket",
     "IngestionRateLimiter",
     "ingestion_rate_limiter",
+    "DlqFailureReason",
+    "DlqEntry",
+    "DeadLetterQueue",
+    "dead_letter_queue",
 ]
