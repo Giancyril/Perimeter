@@ -93,9 +93,32 @@ Security Operations Agent/
 - [x] **Phase 6: Escalation & Human-in-the-Loop Response Gate (Day 24-28)**: Slack / PagerDuty webhook dispatch, LangGraph server-side interrupt approval gate for host isolation / IP blocking.
 - [x] **Phase 7: Frontend SOC Dashboard (Day 28-34)**: Incident queue table, detail timeline, entity correlation panel, approval banner.
 - [x] **Phase 8: Evaluation, Adversarial & Failure Testing (Day 34-38)**: Attack replay evaluation against labeled set, prompt injection defenses, external API failure mode testing.
-- [ ] **Phase 9: Deployment & CI/CD (Day 38-41)**: Container packaging, Helm charts, GitHub Actions evaluation quality gate.
+- [x] **Phase 9: Deployment & CI/CD (Day 38-41)**: Container packaging, Helm charts, GitHub Actions evaluation quality gate.
 
 ---
+
+## Deployment
+
+### Docker Compose (recommended for local / staging)
+
+```bash
+cp .env.example .env   # fill in your API keys
+make docker-up         # builds images and starts all services
+```
+
+- Frontend: http://localhost:3000
+- Backend API: http://localhost:8000/docs
+
+### Kubernetes / Helm
+
+```bash
+# Install chart (with bitnami PostgreSQL + Redis sub-charts)
+helm dependency update infra/helm/secops-agent
+helm install secops-agent infra/helm/secops-agent \
+  --set secrets.openaiApiKey="sk-..." \
+  --set postgresql.auth.password="strong-pass" \
+  --set redis.auth.password="redis-pass"
+```
 
 ## Quickstart & Local Setup
 

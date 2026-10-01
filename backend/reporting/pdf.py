@@ -23,15 +23,25 @@ try:
     _REPORTLAB_AVAILABLE = True
 except ImportError:
     _REPORTLAB_AVAILABLE = False
+    colors = None
 
 
-_SEVERITY_COLORS = {
-    "critical": colors.HexColor("#DC2626"),
-    "high": colors.HexColor("#EA580C"),
-    "medium": colors.HexColor("#D97706"),
-    "low": colors.HexColor("#2563EB"),
-    "informational": colors.HexColor("#6B7280"),
-}
+if _REPORTLAB_AVAILABLE and colors is not None:
+    _SEVERITY_COLORS = {
+        "critical": colors.HexColor("#DC2626"),
+        "high": colors.HexColor("#EA580C"),
+        "medium": colors.HexColor("#D97706"),
+        "low": colors.HexColor("#2563EB"),
+        "informational": colors.HexColor("#6B7280"),
+    }
+else:
+    _SEVERITY_COLORS = {
+        "critical": "#DC2626",
+        "high": "#EA580C",
+        "medium": "#D97706",
+        "low": "#2563EB",
+        "informational": "#6B7280",
+    }
 
 
 def render_pdf(report: IncidentReport) -> bytes:

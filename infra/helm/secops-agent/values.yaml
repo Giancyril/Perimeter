@@ -1,0 +1,94 @@
+# ============================================================
+# Default values for secops-agent Helm chart
+# ============================================================
+
+replicaCount:
+  backend: 2
+  frontend: 2
+
+image:
+  backend:
+    repository: secops-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+  frontend:
+    repository: secops-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+
+service:
+  backend:
+    type: ClusterIP
+    port: 8000
+  frontend:
+    type: LoadBalancer
+    port: 80
+
+ingress:
+  enabled: false
+  className: nginx
+  host: secops.example.com
+  tls: false
+
+resources:
+  backend:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+  frontend:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 200m
+      memory: 256Mi
+
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+postgresql:
+  enabled: true
+  auth:
+    username: secops_user
+    password: secops_password
+    database: secops_db
+  primary:
+    persistence:
+      enabled: true
+      size: 10Gi
+
+redis:
+  enabled: true
+  auth:
+    password: secops_redis_pass
+  master:
+    persistence:
+      enabled: true
+      size: 2Gi
+
+env:
+  ENVIRONMENT: production
+  LOG_LEVEL: info
+  LLM_MODEL: gpt-4o
+
+secrets:
+  openaiApiKey: ""
+  abuseipdbApiKey: ""
+  virustotalApiKey: ""
+  slackWebhookUrl: ""
+
+livenessProbe:
+  initialDelaySeconds: 15
+  periodSeconds: 20
+  failureThreshold: 3
+
+readinessProbe:
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  failureThreshold: 3

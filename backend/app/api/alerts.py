@@ -107,3 +107,19 @@ async def get_alert(alert_id: str = Path(..., description="Alert ID")):
             detail=f"Alert with ID '{alert_id}' not found",
         )
     return alert
+
+@router.post(
+    "/seed",
+    summary="Seed demo alerts and scenarios for local development and testing",
+)
+async def seed_demo_alerts():
+    from backend.evaluation.dataset import BENCHMARK_SCENARIOS
+    count = 0
+    for scenario in BENCHMARK_SCENARIOS:
+        for alert in scenario.alerts:
+            ingestion_engine.ingest(alert)
+            count += 1
+    return {
+        "status": "success",
+        "message": f"Seeded {count} alerts across {len(BENCHMARK_SCENARIOS)} benchmark scenarios",
+    }
