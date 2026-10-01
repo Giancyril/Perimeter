@@ -1,3 +1,4 @@
+from backend.ingestion.storm import StormEntry, SuppressionDecision, AlertStormSuppressor, alert_storm_suppressor
 from backend.ingestion.dlq import DlqFailureReason, DlqEntry, DeadLetterQueue, dead_letter_queue
 from backend.ingestion.rate_limiter import RateLimitStatus, TokenBucket, IngestionRateLimiter, ingestion_rate_limiter
 from backend.ingestion.security import WebhookSecurityManager, webhook_security_manager
@@ -67,4 +68,8 @@ __all__ = [
     "DlqEntry",
     "DeadLetterQueue",
     "dead_letter_queue",
+    "StormEntry",
+    "SuppressionDecision",
+    "AlertStormSuppressor",
+    "alert_storm_suppressor",
 ]
