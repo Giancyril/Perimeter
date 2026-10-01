@@ -18,7 +18,7 @@ class IngestionTelemetry:
     """
 
     def __init__(self, latency_window_size: int = 1000):
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self._latency_window_size = latency_window_size
         self._start_time = time.time()
 

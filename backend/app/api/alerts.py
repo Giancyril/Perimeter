@@ -7,6 +7,8 @@ from fastapi import APIRouter, HTTPException, Path, Query, Body, Header, Request
 from backend.ingestion.security import webhook_security_manager, WebhookSecurityManager
 from backend.app.core.config import settings
 from backend.ingestion import (
+    ingestion_telemetry,
+    dead_letter_queue,
     ingestion_engine,
     NormalizedAlert,
     IngestionResult,
@@ -130,6 +132,25 @@ async def list_alerts(
 )
 async def get_alert_stats():
     return ingestion_engine.get_stats()
+
+@router.get(
+    "/telemetry",
+    summary="Get real-time ingestion pipeline telemetry and throughput metrics",
+)
+async def get_ingestion_telemetry():
+    return ingestion_telemetry.get_snapshot()
+
+@router.get(
+    "/dlq",
+    summary="List dead-letter queue entries for failed or unroutable alerts",
+)
+async def get_dlq_entries(limit: int = Query(50, ge=1, le=500)):
+    stats = dead_letter_queue.get_stats()
+    entries = dead_letter_queue.list_entries(limit=limit)
+    return {
+        "dlq_size": stats.get("total_enqueued", len(entries)),
+        "entries": [e.model_dump() for e in entries],
+    }
 
 @router.get(
     "/{alert_id}",

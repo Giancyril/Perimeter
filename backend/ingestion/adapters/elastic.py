@@ -54,7 +54,7 @@ class ElasticAdapter(AlertSourceAdapter):
             return True
         if isinstance(payload.get("agent"), dict) and payload.get("agent", {}).get("type") in ("filebeat", "packetbeat", "elastic-endpoint", "auditbeat"):
             return True
-        if "@timestamp" in payload and "rule" in payload and "threat" in payload:
+        if "@timestamp" in payload and "rule" in payload:
             return True
         return False
 
@@ -150,9 +150,8 @@ class ElasticAdapter(AlertSourceAdapter):
                                 mitre_techniques.append(str(tech["id"]))
 
         mitre_metadata = MitreAttackMetadata(
-            tactic=mitre_tactics[0] if mitre_tactics else None,
-            technique_id=mitre_techniques[0] if mitre_techniques else None,
-            confidence_score=0.9 if (mitre_tactics or mitre_techniques) else 0.5,
+            tactics=mitre_tactics,
+            techniques=mitre_techniques,
         )
 
         fp_raw = f"elastic:{rule_id}:{host_name}:{source_ip}:{timestamp}"
