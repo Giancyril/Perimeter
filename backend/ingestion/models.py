@@ -68,6 +68,10 @@ class NormalizedAlert(BaseModel):
     last_seen_at: str = Field(default_factory=utc_now)
     duplicate_count: int = 1
 
+    # OCSF v1.1.0 Classification
+    ocsf_class_uid: Optional[int] = None
+    ocsf_category_uid: Optional[int] = None
+
     # Key entity shortcuts for fast filtering
     source_ip: Optional[str] = None
     destination_ip: Optional[str] = None

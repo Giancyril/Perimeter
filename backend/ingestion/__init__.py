@@ -1,4 +1,11 @@
 from backend.ingestion.security import WebhookSecurityManager, webhook_security_manager
+from backend.ingestion.ocsf import (
+    OcsfCategory,
+    OcsfClass,
+    OcsfValidator,
+    ocsf_validator,
+    OcsfValidationResult,
+)
 from backend.ingestion.models import (
     SeverityLevel,
     AlertSourceType,
@@ -35,4 +42,9 @@ __all__ = [
     "IngestionEngine",
     "WebhookSecurityManager",
     "webhook_security_manager",
+    "OcsfCategory",
+    "OcsfClass",
+    "OcsfValidator",
+    "ocsf_validator",
+    "OcsfValidationResult",
 ]
