@@ -6,6 +6,12 @@ from backend.ingestion.ocsf import (
     ocsf_validator,
     OcsfValidationResult,
 )
+from backend.ingestion.network import (
+    IpScope,
+    IpClassification,
+    NetworkClassifier,
+    network_classifier,
+)
 from backend.ingestion.models import (
     SeverityLevel,
     AlertSourceType,
@@ -47,4 +53,8 @@ __all__ = [
     "OcsfValidator",
     "ocsf_validator",
     "OcsfValidationResult",
+    "IpScope",
+    "IpClassification",
+    "NetworkClassifier",
+    "network_classifier",
 ]
