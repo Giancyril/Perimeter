@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { AlertTriangle, ShieldCheck, XCircle, RotateCcw, Check, Loader2 } from "lucide-react";
+﻿import React, { useState } from "react";
+import { AlertTriangle, ShieldCheck, XCircle, RotateCcw, Loader2 } from "lucide-react";
 import type { ProposedAction } from "../types";
 
 interface HitlActionBannerProps {
@@ -9,6 +9,14 @@ interface HitlActionBannerProps {
   onRollback?: (actionId: string) => Promise<void>;
 }
 
+const ACTION_NAMES: Record<string, string> = {
+  isolate_host: "Isolate Host from Network",
+  block_ip: "Block IP at Perimeter Firewall",
+  disable_user: "Disable User & Revoke Active Sessions",
+  kill_process: "Terminate Malicious Process",
+  quarantine_file: "Quarantine File by Hash",
+};
+
 export const HitlActionBanner: React.FC<HitlActionBannerProps> = ({
   action,
   onApprove,
@@ -17,196 +25,165 @@ export const HitlActionBanner: React.FC<HitlActionBannerProps> = ({
 }) => {
   const [submitting, setSubmitting] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
-  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [showRejectForm, setShowRejectForm] = useState(false);
 
   const handleApprove = async () => {
     setSubmitting(true);
-    try {
-      await onApprove(action.action_id, "Approved by SOC Lead via dashboard gate");
-    } finally {
-      setSubmitting(false);
-    }
+    try { await onApprove(action.action_id, "Approved by SOC Lead via dashboard gate"); }
+    finally { setSubmitting(false); }
   };
 
   const handleRejectConfirm = async () => {
     setSubmitting(true);
     try {
       await onReject(action.action_id, rejectReason || "Declined by analyst");
-      setShowRejectModal(false);
-    } finally {
-      setSubmitting(false);
-    }
+      setShowRejectForm(false);
+    } finally { setSubmitting(false); }
   };
 
   const handleRollback = async () => {
     if (!onRollback) return;
     setSubmitting(true);
-    try {
-      await onRollback(action.action_id);
-    } finally {
-      setSubmitting(false);
-    }
+    try { await onRollback(action.action_id); }
+    finally { setSubmitting(false); }
   };
 
-  const formatActionName = (type: string) => {
-    switch (type) {
-      case "isolate_host":
-        return "ISOLATE HOST FROM NETWORK";
-      case "block_ip":
-        return "BLOCK IP AT PERIMETER FIREWALL";
-      case "disable_user":
-        return "DISABLE USER & REVOKE ACTIVE SESSIONS";
-      case "kill_process":
-        return "TERMINATE MALICIOUS PROCESS";
-      case "quarantine_file":
-        return "QUARANTINE FILE HASH";
-      default:
-        return type.toUpperCase();
-    }
-  };
+  const isPending = action.status === "proposed";
+  const isApproved = action.status === "approved" || action.status === "executed";
+  const isRejected = action.status === "rejected";
+  const isRolledBack = action.status === "rolled_back";
+
+  const iconColor = isApproved ? "var(--action-approve)"
+    : isRejected ? "var(--action-reject)"
+      : "var(--hitl-accent)";
+
+  const icon = isApproved ? <ShieldCheck size={18} color={iconColor} />
+    : isRejected ? <XCircle size={18} color={iconColor} />
+      : <AlertTriangle size={18} color={iconColor} />;
 
   return (
     <div className="hitl-banner">
-      <div className="hitl-icon-wrap">
-        {action.status === "approved" || action.status === "executed" ? (
-          <ShieldCheck size={28} color="#00ffcc" />
-        ) : action.status === "rejected" ? (
-          <XCircle size={28} color="#ff3366" />
-        ) : (
-          <AlertTriangle size={28} color="#ffaa00" />
-        )}
-      </div>
-
-      <div className="hitl-content">
-        <div className="hitl-label">
-          {action.status === "proposed"
-            ? "?? HUMAN-IN-THE-LOOP CONTAINMENT GATE ? AUTHORIZATION REQUIRED"
-            : action.status === "approved" || action.status === "executed"
-            ? "? CONTAINMENT ACTION EXECUTED"
-            : action.status === "rejected"
-            ? "? CONTAINMENT ACTION REJECTED"
-            : "? CONTAINMENT ACTION ROLLED BACK"}
-        </div>
-
-        <div className="hitl-action-line">
-          <strong>{formatActionName(action.action_type)}:</strong>{" "}
-          <span className="mono" style={{ color: "var(--accent)", fontWeight: 600 }}>
-            {action.target}
-          </span>
-        </div>
-
-        <div className="hitl-rationale">{action.rationale}</div>
-      </div>
-
-      <div className="hitl-buttons">
-        {action.status === "proposed" && (
-          <>
-            <button
-              className="btn btn-approve"
-              onClick={handleApprove}
-              disabled={submitting}
-            >
-              {submitting ? <Loader2 size={14} className="spinner" /> : <Check size={14} />}
-              <span>Approve & Contain</span>
-            </button>
-
-            <button
-              className="btn btn-reject"
-              onClick={() => setShowRejectModal(true)}
-              disabled={submitting}
-            >
-              <XCircle size={14} />
-              <span>Reject</span>
-            </button>
-          </>
-        )}
-
-        {(action.status === "approved" || action.status === "executed") && (
-          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-            <span className="hitl-result-badge approved">ACTIVE ENFORCEMENT</span>
-            {action.rollback_available && onRollback && (
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={handleRollback}
-                disabled={submitting}
-                style={{ display: "flex", alignItems: "center", gap: "6px" }}
-              >
-                <RotateCcw size={12} />
-                <span>Rollback</span>
-              </button>
-            )}
+      {/* Banner header */}
+      <div className="hitl-banner-header">
+        <div className="hitl-banner-title">
+          <div className="hitl-icon-wrap">{icon}</div>
+          <div>
+            <div className="hitl-banner-label">
+              {isPending ? "Human-in-the-Loop Containment Gate — Authorization Required"
+                : isApproved ? "Containment Action Approved & Active"
+                  : isRejected ? "Containment Action Declined"
+                    : "Containment Action Reversed"}
+            </div>
+            <div className="hitl-banner-name">
+              {ACTION_NAMES[action.action_type] ?? action.action_type}:{" "}
+              <span className="mono">{action.target}</span>
+            </div>
           </div>
-        )}
-
-        {action.status === "rejected" && (
-          <span className="hitl-result-badge rejected">DECLINED BY ANALYST</span>
-        )}
-
-        {action.status === "rolled_back" && (
-          <span className="hitl-result-badge rejected" style={{ borderColor: "#888", color: "#aaa" }}>
-            REVERSED
-          </span>
+        </div>
+        {isPending && (
+          <span className="hitl-risk-badge">High-Risk Action</span>
         )}
       </div>
 
-      {/* Reject Modal */}
-      {showRejectModal && (
-        <div
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0, 0, 0, 0.75)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
-        >
-          <div
-            style={{
-              background: "#161b22",
-              border: "1px solid #30363d",
-              borderRadius: "8px",
-              padding: "24px",
-              width: "420px",
-              maxWidth: "90vw",
-            }}
-          >
-            <h3 style={{ margin: "0 0 12px 0", color: "#f85149", display: "flex", alignItems: "center", gap: "8px" }}>
-              <XCircle size={18} /> Reject Containment Action
-            </h3>
-            <p style={{ fontSize: "13px", color: "var(--text-secondary)", marginBottom: "14px" }}>
-              Please specify the operational or investigation rationale for rejecting action on{" "}
-              <strong>{action.target}</strong>:
-            </p>
+      {/* Banner body */}
+      <div className="hitl-banner-body">
+        {/* Rationale */}
+        <div className="hitl-command-box">{action.rationale}</div>
+
+        {/* Meta */}
+        <div className="hitl-meta-grid">
+          <div className="hitl-meta-item">
+            <span className="hitl-meta-label">Action Type</span>
+            <span className="hitl-meta-val">{action.action_type}</span>
+          </div>
+          <div className="hitl-meta-item">
+            <span className="hitl-meta-label">Target</span>
+            <span className="hitl-meta-val mono">{action.target}</span>
+          </div>
+          <div className="hitl-meta-item">
+            <span className="hitl-meta-label">Status</span>
+            <span className="hitl-meta-val">{action.status}</span>
+          </div>
+          {action.rollback_available && (
+            <div className="hitl-meta-item">
+              <span className="hitl-meta-label">Rollback</span>
+              <span className="hitl-meta-val" style={{ color: "var(--action-approve)" }}>Available</span>
+            </div>
+          )}
+        </div>
+
+        {/* Action buttons */}
+        <div className="hitl-actions">
+          {isPending && (
+            <>
+              <button className="btn btn-approve" onClick={handleApprove} disabled={submitting}>
+                {submitting && <Loader2 size={14} className="spinner" />}
+                <span>Approve & Contain</span>
+              </button>
+              <button
+                className="btn btn-reject"
+                onClick={() => setShowRejectForm((v) => !v)}
+                disabled={submitting}
+              >
+                <span>Reject</span>
+              </button>
+            </>
+          )}
+
+          {isApproved && (
+            <>
+              <span className="hitl-result-badge approved">Active Enforcement</span>
+              {action.rollback_available && onRollback && (
+                <button className="btn btn-ghost btn-sm" onClick={handleRollback} disabled={submitting}>
+                  <RotateCcw size={12} />
+                  <span>Rollback</span>
+                </button>
+              )}
+            </>
+          )}
+
+          {isRejected && (
+            <span className="hitl-result-badge rejected">Declined by Analyst</span>
+          )}
+
+          {isRolledBack && (
+            <span
+              className="hitl-result-badge"
+              style={{
+                background: "var(--bg-hover)",
+                color: "var(--text-muted)",
+                border: "1px solid var(--border)",
+              }}
+            >
+              Reversed
+            </span>
+          )}
+        </div>
+
+        {/* Inline reject form (no separate modal) */}
+        {showRejectForm && isPending && (
+          <div className="reject-form">
+            <div style={{ fontSize: "12px", color: "var(--text-secondary)", marginBottom: "8px" }}>
+              Provide a brief rationale for declining action on{" "}
+              <strong className="mono">{action.target}</strong>:
+            </div>
             <textarea
+              className="reject-textarea"
               rows={3}
               value={rejectReason}
               onChange={(e) => setRejectReason(e.target.value)}
-              placeholder="e.g. Scheduled maintenance window, legitimate failover, or false positive test..."
-              style={{
-                width: "100%",
-                boxSizing: "border-box",
-                background: "#0d1117",
-                border: "1px solid #30363d",
-                borderRadius: "6px",
-                color: "#c9d1d9",
-                padding: "8px",
-                fontSize: "12px",
-                outline: "none",
-                marginBottom: "16px",
-              }}
+              placeholder="e.g. Scheduled maintenance window, legitimate failover, or false positive..."
             />
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
               <button
                 className="btn btn-ghost btn-sm"
-                onClick={() => setShowRejectModal(false)}
+                onClick={() => setShowRejectForm(false)}
                 disabled={submitting}
               >
                 Cancel
               </button>
               <button
-                className="btn btn-reject btn-sm"
+                className="btn btn-confirm-reject btn-sm"
                 onClick={handleRejectConfirm}
                 disabled={submitting}
               >
@@ -214,8 +191,8 @@ export const HitlActionBanner: React.FC<HitlActionBannerProps> = ({
               </button>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
