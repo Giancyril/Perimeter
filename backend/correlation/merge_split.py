@@ -28,14 +28,14 @@ class IncidentClusterManager:
             if inc_a.status in (IncidentStatus.RESOLVED, IncidentStatus.CLOSED):
                 continue
 
-            keys_a = {f"{e.entity_type.value}:{e.value.lower().strip()}" for e in inc_a.entities}
+            keys_a = {f"{e.type.value}:{e.value.lower().strip()}" for e in inc_a.entities}
 
             for j in range(i + 1, n):
                 inc_b = incidents[j]
                 if inc_b.status in (IncidentStatus.RESOLVED, IncidentStatus.CLOSED):
                     continue
 
-                keys_b = {f"{e.entity_type.value}:{e.value.lower().strip()}" for e in inc_b.entities}
+                keys_b = {f"{e.type.value}:{e.value.lower().strip()}" for e in inc_b.entities}
                 shared = list(keys_a.intersection(keys_b))
 
                 if len(shared) >= min_shared_entities:
@@ -64,9 +64,9 @@ class IncidentClusterManager:
         primary.alert_count = len(primary.alerts)
 
         # Combine entities
-        existing_entity_keys = {f"{e.entity_type.value}:{e.value.lower().strip()}" for e in primary.entities}
+        existing_entity_keys = {f"{e.type.value}:{e.value.lower().strip()}" for e in primary.entities}
         for ent in secondary.entities:
-            key = f"{ent.entity_type.value}:{ent.value.lower().strip()}"
+            key = f"{ent.type.value}:{ent.value.lower().strip()}"
             if key not in existing_entity_keys:
                 primary.entities.append(ent)
                 existing_entity_keys.add(key)
@@ -138,20 +138,20 @@ class IncidentClusterManager:
         source_incident.updated_at = utc_now()
 
         # Build new child incident
-        child_tactics = list(dict.fromkeys(t for a in extracted_alerts for t in a.tactics))
-        child_techs = list(dict.fromkeys(t for a in extracted_alerts for t in a.techniques))
+        child_tactics = list(dict.fromkeys(t for a in extracted_alerts for t in (a.mitre_attack.tactics if a.mitre_attack else [])))
+        child_techs = list(dict.fromkeys(t for a in extracted_alerts for t in (a.mitre_attack.techniques if a.mitre_attack else [])))
         child_entities: List[Entity] = []
         seen_keys: Set[str] = set()
         for a in extracted_alerts:
             for e in a.entities:
-                k = f"{e.entity_type.value}:{e.value.lower().strip()}"
+                k = f"{e.type.value}:{e.value.lower().strip()}"
                 if k not in seen_keys:
                     child_entities.append(e)
                     seen_keys.add(k)
 
         child = CorrelatedIncident(
             incident_id=new_incident_id,
-            title=f"Split from {source_incident.incident_id}: {extracted_alerts[0].title}",
+            title=f"Split from {source_incident.incident_id}: {extracted_alerts[0].rule_name}",
             status=IncidentStatus.NEW,
             window_start=min(a.timestamp for a in extracted_alerts),
             window_end=max(a.timestamp for a in extracted_alerts),

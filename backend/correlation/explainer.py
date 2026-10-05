@@ -77,8 +77,8 @@ class IncidentExplainer:
         first_alert = sorted_alerts[0]
 
         suspected_vector = "Unknown"
-        if first_alert.tactics:
-            suspected_vector = first_alert.tactics[0]
+        if first_alert.mitre_attack and first_alert.mitre_attack.tactics:
+            suspected_vector = first_alert.mitre_attack.tactics[0]
         elif first_alert.rule_name:
             suspected_vector = first_alert.rule_name
 

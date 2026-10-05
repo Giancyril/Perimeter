@@ -102,7 +102,7 @@ class TemporalWindowTracker:
             return max(300, int(self.base_window_seconds * 0.5))
 
         # Check unique tactics span: if multiple tactics are present over long duration, expand
-        tactics = {t for a in alerts for t in a.tactics}
+        tactics = {t for a in alerts for t in (a.mitre_attack.tactics if a.mitre_attack else [])}
         if len(tactics) >= 3 and velocity["duration_seconds"] > 900:
             # Multi-stage attack unfolding slowly: expand window up to 2x
             return int(self.base_window_seconds * 2.0)

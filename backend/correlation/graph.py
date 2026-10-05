@@ -25,7 +25,7 @@ class EntityNode:
 class AlertNode:
     def __init__(self, alert: NormalizedAlert):
         self.id = alert.alert_id
-        self.title = alert.title
+        self.title = alert.rule_name
         self.severity = alert.normalized_severity.value
         self.timestamp = alert.timestamp
         self.entity_keys: Set[str] = set()
@@ -55,9 +55,9 @@ class EntityGraph:
         self.alerts[alert.alert_id] = alert_node
 
         for ent in alert.entities:
-            key = f"{ent.entity_type.value}:{ent.value.lower().strip()}"
+            key = f"{ent.type.value}:{ent.value.lower().strip()}"
             if key not in self.entities:
-                self.entities[key] = EntityNode(ent.entity_type.value, ent.value)
+                self.entities[key] = EntityNode(ent.type.value, ent.value)
             
             ent_node = self.entities[key]
             ent_node.alert_ids.add(alert.alert_id)

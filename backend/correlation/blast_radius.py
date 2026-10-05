@@ -51,14 +51,20 @@ class BlastRadiusAssessor:
 
         for ent in entities:
             val = ent.value.strip()
-            if ent.entity_type == EntityType.HOST:
+            if ent.type == EntityType.HOST:
                 hosts.add(val)
-            elif ent.entity_type == EntityType.USER:
+            elif ent.type == EntityType.USER:
                 users.add(val)
-            elif ent.entity_type == EntityType.IP:
-                if ent.is_internal:
-                    internal_ips.add(val)
-                else:
+            elif ent.type == EntityType.IP:
+                # Classify as internal if RFC1918 or starts with 10./192.168./172.
+                import ipaddress
+                try:
+                    ip_obj = ipaddress.ip_address(val)
+                    if ip_obj.is_private:
+                        internal_ips.add(val)
+                    else:
+                        external_ips.add(val)
+                except Exception:
                     external_ips.add(val)
 
         # Evaluate highest tier among hosts

@@ -61,7 +61,7 @@ class CorrelationTelemetry:
         entity_counter = Counter()
         for inc in incidents:
             for ent in inc.entities:
-                entity_counter[f"{ent.entity_type.value}:{ent.value}"] += 1
+                entity_counter[f"{ent.type.value}:{ent.value}"] += 1
 
         top_pivots = [
             {"entity": k, "incident_count": v}
