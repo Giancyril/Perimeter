@@ -12,7 +12,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List, Optional, Set
 
-from backend.correlation.models import CorrelatedIncident
 from backend.ingestion.models import NormalizedAlert
 
 
@@ -180,6 +179,18 @@ class HypothesisEngine:
             return HypothesisConfidence.MEDIUM
         return HypothesisConfidence.LOW
 
+    def _extract_text_blob(self, alert: NormalizedAlert) -> str:
+        cmd = ""
+        if isinstance(alert.raw_payload, dict):
+            cmd = str(alert.raw_payload.get("cmd") or alert.raw_payload.get("command_line") or "")
+        parts = [
+            alert.rule_name,
+            alert.rule_description or "",
+            alert.process_name or "",
+            cmd,
+        ]
+        return " ".join(parts).lower()
+
     def generate(
         self,
         alerts: List[NormalizedAlert],
@@ -189,17 +200,15 @@ class HypothesisEngine:
         if not alerts:
             return []
 
-        alert_text_blobs = [
-            f"{a.rule_name} {a.rule_description or ''} {a.command_line or ''}".lower()
-            for a in alerts
-        ]
+        alert_text_blobs = [self._extract_text_blob(a) for a in alerts]
         all_techniques: Set[str] = set()
         all_tactics: Set[str] = set()
         all_entities: Set[str] = set()
 
         for a in alerts:
-            all_techniques.update(a.mitre_attack.techniques)
-            all_tactics.update(a.mitre_attack.tactics)
+            if a.mitre_attack:
+                all_techniques.update(a.mitre_attack.techniques)
+                all_tactics.update(a.mitre_attack.tactics)
             for e in a.entities:
                 all_entities.add(f"{e.type.value}:{e.value}")
 
@@ -226,7 +235,7 @@ class HypothesisEngine:
             elif matched_techniques:
                 score = max(0.50, score - 0.05)
 
-            if len(alerts) >= 3:
+            if len(alerts) >= 2:
                 score = min(1.0, score + 0.05)
 
             evidence_items = []
