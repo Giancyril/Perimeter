@@ -47,6 +47,18 @@ class FloorEnforcementRecord:
     timestamp: datetime = field(default_factory=lambda: datetime.now(timezone.utc))
     explanation: str = ""
 
+    @property
+    def enforcement_applied(self) -> bool:
+        return self.downgrade_prevented
+
+    @property
+    def enforcement_reason(self) -> str:
+        return self.explanation
+
+    @property
+    def adversarial_injection_detected(self) -> bool:
+        return self.violation_type == DowngradeViolationType.PROMPT_INJECTION_TAMPERING
+
     def to_dict(self) -> Dict[str, Any]:
         return {
             "record_id": self.record_id,

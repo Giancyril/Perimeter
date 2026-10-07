@@ -17,11 +17,11 @@ from backend.severity.composite_scorer import CompositeSeverityResult
 from backend.ingestion.models import SeverityLevel
 
 _SEVERITY_EMOJI = {
-    SeverityLevel.CRITICAL: "\U0001f534",
-    SeverityLevel.HIGH: "\U0001f7e0",
-    SeverityLevel.MEDIUM: "\U0001f7e1",
-    SeverityLevel.LOW: "\U0001f7e2",
-    SeverityLevel.INFORMATIONAL: "\u26aa",
+    SeverityLevel.CRITICAL: "[CRITICAL]",
+    SeverityLevel.HIGH: "[HIGH]",
+    SeverityLevel.MEDIUM: "[MEDIUM]",
+    SeverityLevel.LOW: "[LOW]",
+    SeverityLevel.INFORMATIONAL: "[INFORMATIONAL]",
 }
 
 _SEVERITY_DESCRIPTIONS = {
@@ -48,13 +48,15 @@ class SeverityReportGenerator:
     def to_markdown(self, result: CompositeSeverityResult) -> str:
         """Render a human-readable Markdown severity report."""
         sev = result.final_severity
-        emoji = _SEVERITY_EMOJI.get(sev, "?")
+        badge = _SEVERITY_EMOJI.get(sev, "[UNKNOWN]")
         desc = _SEVERITY_DESCRIPTIONS.get(sev, "")
         enforcement = result.enforcement_record
         biz = result.business_impact
 
+        is_enforced = enforcement.downgrade_prevented or getattr(enforcement, "enforcement_applied", False)
+
         lines: List[str] = [
-            f"# {emoji} Severity Report - {result.incident_id}",
+            f"# {badge} Severity Report - {result.incident_id}",
             "",
             f"**Report ID:** `{result.result_id}`",
             f"**Generated:** {result.timestamp.strftime('%Y-%m-%d %H:%M:%S UTC')}",
@@ -68,7 +70,7 @@ class SeverityReportGenerator:
             f"| **Final Severity** | **{sev.value.upper()}** |",
             f"| **Final Score** | {result.final_score:.1f} / 100 |",
             f"| **Deterministic Floor** | {result.deterministic_floor.value.upper()} |",
-            f"| **Floor Enforced** | {'Yes' if enforcement.enforcement_applied else 'No'} |",
+            f"| **Floor Enforced** | {'Yes' if is_enforced else 'No'} |",
             "",
             f"> {desc}",
             "",
@@ -143,13 +145,15 @@ class SeverityReportGenerator:
             "| Field | Value |",
             "|-------|-------|",
             f"| Impact Score | {biz_dict.get('business_impact_score', 0):.1f} |",
-            f"| SLA at Risk | {'Yes' if biz_dict.get('sla_at_risk') else 'No'} |",
-            f"| Customer-Facing Outage | {'Yes' if biz_dict.get('customer_facing_outage') else 'No'} |",
-            f"| Estimated Revenue Loss/Hr | ${biz_dict.get('estimated_revenue_loss_per_hour', 0):,.0f} |",
+            f"| Highest Criticality | {biz_dict.get('highest_criticality', '---')} |",
+            f"| SLA Breached | {'Yes' if biz_dict.get('sla_breached') else 'No'} |",
+            f"| Ack Deadline | {biz_dict.get('ack_deadline', '---')} |",
+            f"| Remediation Deadline | {biz_dict.get('remediation_deadline', '---')} |",
             "",
         ]
 
-        if enforcement.enforcement_applied:
+        if is_enforced:
+            explanation = getattr(enforcement, "explanation", getattr(enforcement, "enforcement_reason", "Floor applied"))
             lines += [
                 "---", "",
                 "## Floor Enforcement Applied", "",
@@ -158,7 +162,7 @@ class SeverityReportGenerator:
                 "|-------|-------|",
                 f"| Proposed | {enforcement.proposed_severity.value.upper()} |",
                 f"| Enforced | {enforcement.enforced_severity.value.upper()} |",
-                f"| Reason | {enforcement.enforcement_reason} |",
+                f"| Reason | {explanation} |",
                 "",
             ]
 
@@ -213,7 +217,8 @@ class BulkReportManager:
         severity_counts = Counter(r.final_severity.value for r in self._results)
         scores = [r.final_score for r in self._results]
         floor_enforcements = sum(
-            1 for r in self._results if r.enforcement_record.enforcement_applied
+            1 for r in self._results
+            if r.enforcement_record.downgrade_prevented or getattr(r.enforcement_record, "enforcement_applied", False)
         )
         return {
             "total_incidents": len(self._results),
