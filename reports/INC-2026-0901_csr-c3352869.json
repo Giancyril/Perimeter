@@ -1,0 +1,89 @@
+{
+  "result_id": "csr-c3352869",
+  "incident_id": "INC-2026-0901",
+  "raw_base_score": 68.0,
+  "drift_adjusted_score": 100.0,
+  "actor_weighted_score": 100.0,
+  "calibrated_score": 100.0,
+  "final_score": 100.0,
+  "final_severity": "critical",
+  "deterministic_floor": "high",
+  "enforcement_record": {
+    "record_id": "enf-1d3a2f6873",
+    "incident_id": "INC-2026-0901",
+    "deterministic_floor": "high",
+    "proposed_severity": "critical",
+    "enforced_severity": "critical",
+    "downgrade_prevented": false,
+    "violation_type": null,
+    "audit_hash": "9fb5d040e874292f6a3569fae153ea579457cb58a2a78a151f38e86b26452722",
+    "timestamp": "2026-10-07T04:14:11.689796+00:00",
+    "explanation": "Proposed severity 'critical' satisfies or exceeds deterministic floor 'high'."
+  },
+  "business_impact": {
+    "highest_criticality": "TIER_0_MISSION_CRITICAL",
+    "affected_units": [
+      "PAYMENTS_CHECKOUT",
+      "IDENTITY_AUTHENTICATION"
+    ],
+    "ack_deadline": "2026-10-07T04:29:11.689751+00:00",
+    "remediation_deadline": "2026-10-07T05:14:11.689751+00:00",
+    "sla_breached": false,
+    "business_impact_score": 30.0,
+    "executive_summary": "Business Impact [TIER_0_MISSION_CRITICAL]. Affected workflows: ['PAYMENTS_CHECKOUT', 'IDENTITY_AUTHENTICATION']. Mandatory SOC Ack Deadline: 15m, Remediation: 1h. Outage Flag: True."
+  },
+  "pipeline_stages": {
+    "risk_matrix": {
+      "likelihood": "ALMOST_CERTAIN",
+      "likelihood_val": 5,
+      "impact": "CATASTROPHIC",
+      "impact_val": 5,
+      "matrix_score": 25,
+      "severity_level": "critical",
+      "estimated_financial_exposure_usd": 42112500.0,
+      "regulatory_penalties": {
+        "GDPR": 350000.0,
+        "PCI_DSS": 87500.0
+      },
+      "primary_category": "OPERATIONAL",
+      "summary": "Risk Matrix: ALMOST_CERTAIN (5) x CATASTROPHIC (5) = Score 25 [CRITICAL]. Est. Financial Exposure: $42,112,500.00. Regulatory Frameworks: ['GDPR', 'PCI_DSS']."
+    },
+    "environmental_drift": {
+      "original_score": 68.0,
+      "adjusted_score": 100.0,
+      "drift_multiplier": 1.599,
+      "time_context": "AFTER_HOURS",
+      "is_change_freeze": true,
+      "adjustment_reasons": [
+        "After-hours activity increases risk by +15%",
+        "Active change-freeze policy violation increases risk by +25%",
+        "Significant host configuration drift (0.75) applies +11% penalty"
+      ]
+    },
+    "actor_weighting": {
+      "base_score": 100.0,
+      "final_score": 100.0,
+      "actor_name": "LAZARUS GROUP",
+      "tier": "TIER_2_ORGANIZED_SYNDICATE",
+      "capability_multiplier": 1.322,
+      "bonus_points": 45.0,
+      "justification": "Attributed Actor 'LAZARUS GROUP' [TIER_2_ORGANIZED_SYNDICATE]. Multiplier: 1.32x (Confidence: 0.92). Bonus points: +45.0 (Zero-day exploit weaponization (+15 pts), Destructive wiper / encryption payload (+20 pts), Defense evasion / EDR neutralization (+10 pts))."
+    },
+    "calibration": {
+      "calibrated_score": 100.0
+    },
+    "business_impact": {
+      "highest_criticality": "TIER_0_MISSION_CRITICAL",
+      "affected_units": [
+        "PAYMENTS_CHECKOUT",
+        "IDENTITY_AUTHENTICATION"
+      ],
+      "ack_deadline": "2026-10-07T04:29:11.689751+00:00",
+      "remediation_deadline": "2026-10-07T05:14:11.689751+00:00",
+      "sla_breached": false,
+      "business_impact_score": 30.0,
+      "executive_summary": "Business Impact [TIER_0_MISSION_CRITICAL]. Affected workflows: ['PAYMENTS_CHECKOUT', 'IDENTITY_AUTHENTICATION']. Mandatory SOC Ack Deadline: 15m, Remediation: 1h. Outage Flag: True."
+    }
+  },
+  "timestamp": "2026-10-07T04:14:11.693262+00:00"
+}
