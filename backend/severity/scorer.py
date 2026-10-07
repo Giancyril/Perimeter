@@ -1,4 +1,4 @@
-﻿from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional
 from backend.correlation.models import CorrelatedIncident
 from backend.ingestion.models import SeverityLevel
 from backend.severity.models import AssetCriticalityTier
@@ -150,6 +150,55 @@ class DeterministicScorer:
             rule_floor_override=rule_override,
         )
 
+    def score_with_composite(
+        self,
+        incident: CorrelatedIncident,
+        threat_intel: Optional[Dict[str, Any]] = None,
+        asset_context: Optional[Dict[str, Any]] = None,
+        lateral_movement_paths: Optional[List[str]] = None,
+        adversarial_injection_detected: bool = False,
+        # Day 4 composite enrichment parameters
+        composite_params: Optional[Dict[str, Any]] = None,
+    ):
+        """
+        Full Day 4 scoring pipeline.
+
+        1. Runs deterministic breakdown to establish base_score and floor.
+        2. Feeds into CompositeSeverityOrchestrator for multi-factor enrichment.
+        3. Returns a CompositeSeverityResult ready for reporting.
+
+        Args:
+            incident: The correlated incident.
+            threat_intel: Optional TI dict keyed by IOC string.
+            asset_context: Optional asset criticality context.
+            lateral_movement_paths: Confirmed lateral movement paths.
+            adversarial_injection_detected: True if injection was detected.
+            composite_params: Additional keyword args forwarded to
+                CompositeSeverityOrchestrator.score().
+
+        Returns:
+            CompositeSeverityResult with full pipeline audit trail.
+        """
+        from backend.severity.composite_scorer import CompositeSeverityOrchestrator
+
+        breakdown = self.calculate_breakdown(
+            incident=incident,
+            threat_intel=threat_intel,
+            asset_context=asset_context,
+            lateral_movement_paths=lateral_movement_paths,
+            adversarial_injection_detected=adversarial_injection_detected,
+        )
+
+        orchestrator = CompositeSeverityOrchestrator()
+        params = composite_params or {}
+
+        return orchestrator.score(
+            incident_id=incident.incident_id,
+            base_score=breakdown.raw_calculated_score,
+            deterministic_floor=breakdown.deterministic_floor,
+            adversarial_injection_detected=adversarial_injection_detected,
+            **params,
+        )
+
+
 deterministic_scorer = DeterministicScorer()
-
-
