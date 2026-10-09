@@ -1,0 +1,16 @@
+```mermaid
+flowchart LR
+    %% Theme and styling
+    classDef external fill:#b91c1c,stroke:#f87171,stroke-width:2px,color:#fff;
+    classDef host fill:#1e293b,stroke:#64748b,stroke-width:2px,color:#f8fafc;
+    classDef crownJewel fill:#dc2626,stroke:#fca5a5,stroke-width:3px,color:#fff;
+    classDef action fill:#0f172a,stroke:#38bdf8,stroke-width:1px,color:#38bdf8;
+    N_198_51_100_99_0["198.51.100.99<br/><small>(ip)</small>"]
+    class N_198_51_100_99_0 external;
+    N_srv_app_01_1["srv-app-01<br/><small>(host)</small>"]
+    class N_srv_app_01_1 host;
+    N_pci_payment_db01_2["pci-payment-db01<br/><small>(host)</small>"]
+    class N_pci_payment_db01_2 crownJewel;
+    N_10_0_4_15_3 -->|"Credential Dumping via LSASS"| N_198_51_100_99_0
+    N_198_51_100_99_0 -->|"Known Ransomware Operator C2"| N_srv_app_01_1
+```

@@ -1,0 +1,167 @@
+{
+  "slack": {
+    "attachments": [
+      {
+        "color": "#e11d48",
+        "blocks": [
+          {
+            "type": "header",
+            "text": {
+              "type": "plain_text",
+              "text": "\ud83d\udea8 [CRITICAL] Incident Alert: INC-2026-7788",
+              "emoji": true
+            }
+          },
+          {
+            "type": "section",
+            "fields": [
+              {
+                "type": "mrkdwn",
+                "text": "*Incident ID:*\n`INC-2026-7788`"
+              },
+              {
+                "type": "mrkdwn",
+                "text": "*Severity:*\n*CRITICAL*"
+              },
+              {
+                "type": "mrkdwn",
+                "text": "*Floor Enforced:*\n\u2705 Yes"
+              },
+              {
+                "type": "mrkdwn",
+                "text": "*Status:*\n`CONTAINED`"
+              }
+            ]
+          },
+          {
+            "type": "section",
+            "text": {
+              "type": "mrkdwn",
+              "text": "*Summary:*\nConfirmed high-consequence APT ransomware actor pivoting to payment databases."
+            }
+          },
+          {
+            "type": "divider"
+          },
+          {
+            "type": "section",
+            "text": {
+              "type": "mrkdwn",
+              "text": "*MITRE ATT&CK Tactics:*\n`Initial Access, Credential Access, Lateral Movement`"
+            }
+          },
+          {
+            "type": "actions",
+            "elements": [
+              {
+                "type": "button",
+                "text": {
+                  "type": "plain_text",
+                  "text": "Approve Containment",
+                  "emoji": true
+                },
+                "style": "danger",
+                "value": "approve_containment_INC-2026-7788"
+              },
+              {
+                "type": "button",
+                "text": {
+                  "type": "plain_text",
+                  "text": "View in SOC Dashboard",
+                  "emoji": true
+                },
+                "url": "https://soc.company.internal/incidents/INC-2026-7788"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "teams": {
+    "type": "AdaptiveCard",
+    "$schema": "http://adaptivecards.io/schemas/adaptive-card.json",
+    "version": "1.5",
+    "body": [
+      {
+        "type": "TextBlock",
+        "size": "Large",
+        "weight": "Bolder",
+        "text": "[CRITICAL] Security Incident with Adversarial Prompt Injection Defense Triggered: Ransomware Operator Pivot into Tier-0 PCI Payment Database",
+        "color": "Attention"
+      },
+      {
+        "type": "FactSet",
+        "facts": [
+          {
+            "title": "Incident ID",
+            "value": "INC-2026-7788"
+          },
+          {
+            "title": "Final Severity",
+            "value": "CRITICAL"
+          },
+          {
+            "title": "Deterministic Floor",
+            "value": "CRITICAL"
+          },
+          {
+            "title": "Attack Stages",
+            "value": "3"
+          },
+          {
+            "title": "Adversarial Injection Detected",
+            "value": "YES (Override Blocked)"
+          }
+        ]
+      },
+      {
+        "type": "TextBlock",
+        "text": "Confirmed high-consequence APT ransomware actor pivoting to payment databases.",
+        "wrap": true
+      }
+    ],
+    "actions": [
+      {
+        "type": "Action.OpenUrl",
+        "title": "Open Investigation Workspace",
+        "url": "https://soc.company.internal/incidents/INC-2026-7788"
+      },
+      {
+        "type": "Action.Submit",
+        "title": "Trigger Automated Remediation",
+        "data": {
+          "action": "remediate",
+          "incident_id": "INC-2026-7788"
+        }
+      }
+    ]
+  },
+  "pagerduty": {
+    "routing_key": "SOC_ROUTING_KEY_PROD",
+    "event_action": "trigger",
+    "dedup_key": "soc-incident-INC-2026-7788",
+    "payload": {
+      "summary": "[CRITICAL] Ransomware Operator Pivot into Tier-0 PCI Payment Database (INC-2026-7788)",
+      "source": "Autonomous SOC Agent",
+      "severity": "critical",
+      "timestamp": "2026-10-09T00:49:05.762265+00:00",
+      "component": "Threat Detection Pipeline",
+      "group": "SecOps",
+      "class": "Security Incident",
+      "custom_details": {
+        "incident_id": "INC-2026-7788",
+        "deterministic_floor": "critical",
+        "final_score": 92.0,
+        "tactics": [
+          "Initial Access",
+          "Credential Access",
+          "Lateral Movement"
+        ],
+        "adversarial_injection": true
+      }
+    },
+    "client": "Autonomous Security Operations Center",
+    "client_url": "https://soc.company.internal/incidents/INC-2026-7788"
+  }
+}

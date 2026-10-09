@@ -1,0 +1,151 @@
+{
+  "type": "bundle",
+  "id": "bundle--90856b5c-c231-4966-a0c9-59af4ef217c7",
+  "spec_version": "2.1",
+  "objects": [
+    {
+      "type": "identity",
+      "spec_version": "2.1",
+      "id": "identity--69148954-f775-55fe-8756-3185adbdfae2",
+      "created": "2026-10-09T00:49:05.767Z",
+      "modified": "2026-10-09T00:49:05.767Z",
+      "name": "Autonomous SecOps Agent SOC",
+      "identity_class": "system",
+      "sectors": [
+        "technology",
+        "cybersecurity"
+      ]
+    },
+    {
+      "type": "incident",
+      "spec_version": "2.1",
+      "id": "incident--011fe1d7-7594-4f3f-94ba-cd33e490890b",
+      "created": "2026-10-09T00:49:05.767Z",
+      "modified": "2026-10-09T00:49:05.767Z",
+      "name": "[CRITICAL] Ransomware Operator Pivot into Tier-0 PCI Payment Database",
+      "description": "Confirmed high-consequence APT ransomware actor pivoting to payment databases.",
+      "created_by_ref": "identity--69148954-f775-55fe-8756-3185adbdfae2",
+      "labels": [
+        "severity:critical",
+        "status:contained",
+        "automated-triage"
+      ],
+      "external_references": [
+        {
+          "source_name": "Autonomous SOC Incident ID",
+          "external_id": "INC-2026-7788"
+        }
+      ]
+    },
+    {
+      "type": "attack-pattern",
+      "spec_version": "2.1",
+      "id": "attack-pattern--1e0da468-b699-4b7a-940b-264b8ebf0a36",
+      "created": "2026-10-09T00:49:05.767Z",
+      "modified": "2026-10-09T00:49:05.767Z",
+      "name": "T1003.001",
+      "created_by_ref": "identity--69148954-f775-55fe-8756-3185adbdfae2",
+      "external_references": [
+        {
+          "source_name": "mitre-attack",
+          "external_id": "T1003.001",
+          "url": "https://attack.mitre.org/techniques/T1003/001/"
+        }
+      ]
+    },
+    {
+      "type": "attack-pattern",
+      "spec_version": "2.1",
+      "id": "attack-pattern--4df99a65-986b-42d7-ba1f-f194749ed30f",
+      "created": "2026-10-09T00:49:05.767Z",
+      "modified": "2026-10-09T00:49:05.767Z",
+      "name": "T1071.001",
+      "created_by_ref": "identity--69148954-f775-55fe-8756-3185adbdfae2",
+      "external_references": [
+        {
+          "source_name": "mitre-attack",
+          "external_id": "T1071.001",
+          "url": "https://attack.mitre.org/techniques/T1071/001/"
+        }
+      ]
+    },
+    {
+      "type": "attack-pattern",
+      "spec_version": "2.1",
+      "id": "attack-pattern--33a965c9-a96d-4ed7-bbc4-6cf2b3405d9a",
+      "created": "2026-10-09T00:49:05.767Z",
+      "modified": "2026-10-09T00:49:05.767Z",
+      "name": "T1021.002",
+      "created_by_ref": "identity--69148954-f775-55fe-8756-3185adbdfae2",
+      "external_references": [
+        {
+          "source_name": "mitre-attack",
+          "external_id": "T1021.002",
+          "url": "https://attack.mitre.org/techniques/T1021/002/"
+        }
+      ]
+    },
+    {
+      "type": "indicator",
+      "spec_version": "2.1",
+      "id": "indicator--192fd4d6-34bd-4691-a6d6-a444b1c267b8",
+      "created": "2026-10-09T00:49:05.767Z",
+      "modified": "2026-10-09T00:49:05.767Z",
+      "name": "IOC: 198.51.100.99",
+      "pattern": "[ipv4-addr:value = '198.51.100.99']",
+      "pattern_type": "stix",
+      "valid_from": "2026-10-09T00:49:05.767Z",
+      "indicator_types": [
+        "malicious-activity"
+      ],
+      "created_by_ref": "identity--69148954-f775-55fe-8756-3185adbdfae2",
+      "labels": [
+        "criticality:medium"
+      ]
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--269a1481-c79b-4465-85fc-5d6b710a38b5",
+      "created": "2026-10-09T00:49:05.767Z",
+      "modified": "2026-10-09T00:49:05.767Z",
+      "relationship_type": "uses",
+      "source_ref": "incident--011fe1d7-7594-4f3f-94ba-cd33e490890b",
+      "target_ref": "attack-pattern--1e0da468-b699-4b7a-940b-264b8ebf0a36",
+      "created_by_ref": "identity--69148954-f775-55fe-8756-3185adbdfae2"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--85d808e9-c644-43b3-b642-48b0267aba3b",
+      "created": "2026-10-09T00:49:05.767Z",
+      "modified": "2026-10-09T00:49:05.767Z",
+      "relationship_type": "uses",
+      "source_ref": "incident--011fe1d7-7594-4f3f-94ba-cd33e490890b",
+      "target_ref": "attack-pattern--4df99a65-986b-42d7-ba1f-f194749ed30f",
+      "created_by_ref": "identity--69148954-f775-55fe-8756-3185adbdfae2"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--53d8f93a-de03-4c46-b032-ecbfd9a608c8",
+      "created": "2026-10-09T00:49:05.767Z",
+      "modified": "2026-10-09T00:49:05.767Z",
+      "relationship_type": "uses",
+      "source_ref": "incident--011fe1d7-7594-4f3f-94ba-cd33e490890b",
+      "target_ref": "attack-pattern--33a965c9-a96d-4ed7-bbc4-6cf2b3405d9a",
+      "created_by_ref": "identity--69148954-f775-55fe-8756-3185adbdfae2"
+    },
+    {
+      "type": "relationship",
+      "spec_version": "2.1",
+      "id": "relationship--30f7586e-3174-456c-b39b-f256067386bd",
+      "created": "2026-10-09T00:49:05.767Z",
+      "modified": "2026-10-09T00:49:05.767Z",
+      "relationship_type": "indicates",
+      "source_ref": "indicator--192fd4d6-34bd-4691-a6d6-a444b1c267b8",
+      "target_ref": "incident--011fe1d7-7594-4f3f-94ba-cd33e490890b",
+      "created_by_ref": "identity--69148954-f775-55fe-8756-3185adbdfae2"
+    }
+  ]
+}
